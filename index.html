@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>周回管理アプリ</title>
+    <link rel="stylesheet" href="styles.css?v=dq-no-lock1">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-bar">
+        <button id="globalLapButton" class="lap-display" type="button" aria-label="左上の全体残り周回。タップで残り周回を進める">
+          <span id="globalLap">13</span>
+          <small>残り周回</small>
+        </button>
+        <section class="race-title">
+          <div id="eventName">大会名未設定</div>
+          <strong id="raceName">男子5000m 決勝1組</strong>
+        </section>
+        <div class="top-actions">
+          <button id="fullscreenButton" class="icon-action secondary" type="button">全画面</button>
+          <button id="settingsButton" class="icon-action" type="button">設定</button>
+        </div>
+      </header>
+
+      <section id="tailModeBanner" class="tail-banner" hidden>
+        <strong>最後尾から順に5名タップしてください</strong>
+        <span id="tailModeCount">0 / 5</span>
+        <button id="cancelTailModeButton" type="button">キャンセル</button>
+      </section>
+
+      <main class="main-area">
+        <div id="runnerRows" class="runner-rows" aria-live="polite"></div>
+      </main>
+
+      <footer class="bottom-bar">
+        <button id="bulkPassButton" class="bulk-button" type="button">
+          <span>残りを一斉通過</span>
+          <small>active選手を -1 / 長押しで最後尾5名</small>
+        </button>
+        <button id="undoButton" class="command-button" type="button">
+          <span>操作取消</span>
+          <small>押すたびに前へ戻す</small>
+        </button>
+        <button id="addRunnerButton" class="command-button" type="button">
+          <span>選手追加</span>
+          <small>途中から追加</small>
+        </button>
+        <button id="displayModeButton" class="command-button" type="button">
+          <span id="displayModeMain">No.順</span>
+          <small id="displayModeSub">タップして通過順へ</small>
+        </button>
+        <button id="bellButton" class="command-button" type="button">
+          <span id="bellMain">鐘 OFF</span>
+          <small id="bellSub">タップしてON</small>
+        </button>
+        <button id="saveRecordButton" class="command-button primary" type="button">
+          <span>記録保存</span>
+          <small>このレースを保存</small>
+        </button>
+        <button id="recordsButton" class="command-button" type="button">
+          <span>保存記録</span>
+          <small>ミス確認用</small>
+        </button>
+        <section class="legend" aria-label="色の見方">
+          <span><i class="swatch normal"></i>通常</span>
+          <span><i class="swatch lap3"></i>3</span>
+          <span><i class="swatch lap2"></i>2</span>
+          <span><i class="swatch lap1"></i>1</span>
+          <span><i class="swatch done"></i>0</span>
+          <span><i class="swatch dnf"></i>DNF</span>
+          <span><i class="swatch dq"></i>DQ</span>
+          <span><i class="swatch dns"></i>DNS</span>
+          <span><i class="border-sample"></i>注意</span>
+        </section>
+        <p class="notice">本アプリは競技運営補助を目的としたものです。最終確認は必ず競技役員が行ってください。</p>
+      </footer>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="restoreDialog" class="modal">
+      <form method="dialog" class="modal-panel compact">
+        <h1>前回のレースを復元しますか？</h1>
+        <p>未完了の保存データがあります。</p>
+        <div class="modal-actions">
+          <button id="discardRestoreButton" value="discard" type="button">新規作成</button>
+          <button id="restoreButton" value="restore" class="primary" type="button">復元する</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="modal">
+      <form id="settingsForm" class="modal-panel">
+        <h1>レース設定</h1>
+        <div class="form-grid">
+          <label>
+            大会名
+            <input id="eventNameInput" name="eventName" autocomplete="off" value="26東京都総体" required>
+          </label>
+          <label>
+            性別
+            <select id="genderInput" name="gender">
+              <option>男子</option>
+              <option>女子</option>
+            </select>
+          </label>
+          <label>
+            距離
+            <select id="distanceInput" name="distance">
+              <option value="3000m">3000m</option>
+              <option value="5000m" selected>5000m</option>
+              <option value="3000mW">3000mW</option>
+              <option value="5000mW">5000mW</option>
+              <option value="10000m">10000m</option>
+              <option value="3000mSC">3000mSC</option>
+              <option value="その他">その他</option>
+            </select>
+          </label>
+          <label>
+            ラウンド
+            <select id="roundInput" name="round">
+              <option>予選</option>
+              <option>準決勝</option>
+              <option selected>決勝</option>
+            </select>
+          </label>
+          <label>
+            組
+            <span class="stepper compact">
+              <button class="stepper-button" type="button" data-step-target="heatNumberInput" data-step="-1">-</button>
+              <input id="heatNumberInput" name="heatNumber" type="number" inputmode="numeric" min="1" max="20" value="1" required>
+              <button class="stepper-button" type="button" data-step-target="heatNumberInput" data-step="1">+</button>
+            </span>
+          </label>
+          <label>
+            参加人数
+            <span class="stepper">
+              <button class="stepper-button" type="button" data-step-target="participantCountInput" data-step="-1">-</button>
+              <input id="participantCountInput" name="participantCount" type="number" inputmode="numeric" min="1" max="50" value="28" required>
+              <button class="stepper-button" type="button" data-step-target="participantCountInput" data-step="1">+</button>
+            </span>
+          </label>
+          <label>
+            初期残り周回
+            <span class="stepper">
+              <button class="stepper-button" type="button" data-step-target="initialLapsInput" data-step="-1">-</button>
+              <input id="initialLapsInput" name="initialLaps" type="number" inputmode="numeric" min="1" max="99" value="13" required>
+              <button class="stepper-button" type="button" data-step-target="initialLapsInput" data-step="1">+</button>
+            </span>
+          </label>
+        </div>
+        <p class="settings-note">距離を選ぶと初期残り周回を自動設定します。参加人数は最大50名です。</p>
+        <div class="modal-actions">
+          <button id="cancelSettingsButton" type="button">キャンセル</button>
+          <button class="primary" type="submit">開始</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="runnerMenuDialog" class="modal">
+      <form method="dialog" class="modal-panel compact">
+        <h1 id="runnerMenuTitle">選手操作</h1>
+        <p>長押しした選手の状態を変更します。</p>
+        <label id="runnerLapField" class="restore-lap-field">
+          残り周回
+          <span class="stepper compact">
+            <button class="stepper-button" type="button" data-step-target="runnerLapInput" data-step="-1">-</button>
+            <input id="runnerLapInput" name="runnerLap" type="number" inputmode="numeric" min="0" max="99" value="12">
+            <button class="stepper-button" type="button" data-step-target="runnerLapInput" data-step="1">+</button>
+          </span>
+        </label>
+        <div class="modal-actions stack">
+          <button id="restoreRunnerButton" value="restore" type="button">指定周回で復活</button>
+          <button id="updateRunnerLapButton" value="updateLap" type="button">残り周回を修正</button>
+          <button id="returnRunnerLapButton" value="returnLap" type="button">1周戻す</button>
+          <button id="dnfButton" value="dnf" type="button">DNF（途中棄権）</button>
+          <button id="dqButton" value="dq" type="button">DQ（失格）</button>
+          <button id="dnsButton" value="dns" type="button">DNS（未出走）</button>
+          <button id="cancelRunnerMenuButton" value="cancel" type="button">キャンセル</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="addRunnerDialog" class="modal">
+      <form id="addRunnerForm" class="modal-panel compact">
+        <h1>選手追加</h1>
+        <p>途中から参加が判明した選手を追加します。</p>
+        <label>
+          ナンバー
+          <input id="addRunnerNumberInput" name="runnerNumber" type="number" inputmode="numeric" min="1" max="9999" value="1" required>
+        </label>
+        <label class="restore-lap-field">
+          残り周回
+          <span class="stepper compact">
+            <button class="stepper-button" type="button" data-step-target="addRunnerLapInput" data-step="-1">-</button>
+            <input id="addRunnerLapInput" name="remainingLaps" type="number" inputmode="numeric" min="0" max="99" value="12" required>
+            <button class="stepper-button" type="button" data-step-target="addRunnerLapInput" data-step="1">+</button>
+          </span>
+        </label>
+        <div class="modal-actions">
+          <button id="cancelAddRunnerButton" type="button">キャンセル</button>
+          <button class="primary" type="submit">追加</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="recordsDialog" class="modal">
+      <form method="dialog" class="modal-panel record-panel">
+        <h1>保存記録</h1>
+        <div class="record-layout">
+          <section>
+            <h2>レース一覧</h2>
+            <div id="recordList" class="record-list"></div>
+          </section>
+          <section>
+            <h2>確認内容</h2>
+            <div id="recordDetail" class="record-detail">保存済みレースを選択してください。</div>
+          </section>
+        </div>
+        <div class="modal-actions">
+          <button id="closeRecordsButton" type="button">閉じる</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js?v=tapped-frame1"></script>
+  </body>
+</html>
